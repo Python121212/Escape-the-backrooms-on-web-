@@ -1,0 +1,43 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # 手動実行も可能にする
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SteamCMD
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y steamcmd
+          # SteamCMDのディレクトリを作成
+          mkdir -p ./steamcmd
+          ln -s /usr/games/steamcmd ./steamcmd/steamcmd
+
+      - name: Download Escape the Backrooms
+        env:
+          STEAM_USER: ${{ secrets.STEAM_USER }}
+          STEAM_PASS: ${{ secrets.STEAM_PASS }}
+          STEAM_GUARD: ${{ secrets.STEAM_GUARD_CODE }}
+        run: |
+          # 認証とダウンロード (AppID: 1943950)
+          ./steamcmd/steamcmd.sh +login $STEAM_USER $STEAM_PASS $STEAM_GUARD \
+          +force_install_dir ./game_data \
+          +app_update 1943950 validate \
+          +quit
+
+      - name: Verify Integrity
+        run: |
+          # ファイルが存在するか確認 (改造は行わない)
+          ls -la ./game_data
+          
+      - name: Prepare Deployment
+        run: |
+          # Cloudflare Pages 用のディレクトリにコピー（ビルド成果物）
+          mkdir -p ./dist
+          cp -r ./game_data ./dist/
